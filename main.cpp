@@ -5,20 +5,29 @@
 #include "pc.h"
 #include "semaforo.h"
 
-using namespace std;
 
-int main()
-{
-    cout << "------------------------" << endl;
-    cout << "SISTEMA DE RENDERIZADO INICIADO" << endl;
-    cout << "------------------------" << endl;
+
+int main() {
+
+    srand(time(NULL)); // Inicializar la semilla para los números aleatorios de prioridad
+
+    std::cout << "===============================================" << std::endl;
+    std::cout << "   SISTEMA DE RENDERIZADO INICIADO  " << std::endl;
+    std::cout << "===============================================" << std::endl;
 
     // Inicializar semáforos
-    init(hay_jobs_cola, 0); // No hay jobs al inicio
-    init(hay_jobs_vram, 0); // No hay jobs en VRAM al
-    init(slots_vram_libres, 5); // VRAM tiene 5 slots libres
-    // Crear hilos
-    thread hilo_productor(api_gateway);
+    init(hay_jobs_cola, 0);         // Empieza en 0 porque la cola está vacía
+    init(hay_jobs_vram, 0);         // Empiexa en 0 porque el pool está vacío
+    init(slots_vram_libres, 5);     // Empieza en 5 (hay 5 lugares libres)
+
+    std::thread hilo_productor(api_gateway);
+    std::thread hilo_despachador(despachador);
+
     hilo_productor.join();
+    hilo_despachador.join();
+
+
+
+
     return 0;
 }

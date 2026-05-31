@@ -21,8 +21,11 @@ extern Semaforo hay_jobs_cola; // Si hay algo en el primer Buffer
 extern Semaforo hay_jobs_vram; // Si hay algo en el segundo Buffer
 extern Semaforo slots_vram_libres; //Inicializado en 5 (capacidad VRAM)
 
+// --- PRUEBAS ---
+extern const int TOTAL_JOBS; //variable global
+
 // --- FUNCIONES DE LOS HILOS ---
-void api_gateway(); // El productor: Genera Jobs y los mete a Buffer 1
+void api_gateway(int limite); // El productor: Genera Jobs y los mete a Buffer 1
 void despachador(); // El INTERMEDIARIO: Pasa de Buffer 1 a Buffer 2 (Prioridad)
 void worker();      // El Consumidor: Procesa Jobs del Buffer 2
 

@@ -37,13 +37,14 @@ int main() {
      w1.join();
      w2.join();
 
-     */
+*/
 
 
 //ESCENARIO B
-   /* std::thread p1(api_gateway);
-     std::thread p2(api_gateway);
-     std::thread p3(api_gateway);
+
+    std::thread p1(api_gateway, 7);
+     std::thread p2(api_gateway, 7);
+     std::thread p3(api_gateway, 6);
 
      std::thread d(despachador);
 
@@ -53,13 +54,13 @@ int main() {
      p2.join();
      p3.join();
      d.join();
-     w1.join();*/
+     w1.join();
 
 //ESCENARIO C
-
-     std::thread p1(api_gateway);
-     std::thread p2(api_gateway);
-     std::thread p3(api_gateway);
+/*
+     std::thread p1(api_gateway, 500);// productor 1 genera 7 jobs
+     std::thread p2(api_gateway, 500) ; // productor 2 genera 7 jobs
+     std::thread p3(api_gateway, 500); // productor 3 genera 6 jobs
 
      std::thread d(despachador);
 
@@ -74,6 +75,9 @@ int main() {
      w1.join();
      w2.join();
      w3.join();
+
+
+*/
 
     return 0;
 }

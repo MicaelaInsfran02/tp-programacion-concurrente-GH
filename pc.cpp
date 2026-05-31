@@ -27,25 +27,61 @@ Semaforo slots_vram_libres; //Inicializado en 5 (capacidad VRAM)
 
 // -- Variables globales
 int siguiente_id = 1; //Para asignar IDs únicos a los jobs
+
 int jobs_finalizados = 0;
-const int TOTAL_JOBS = 20;
+//const int TOTAL_JOBS = 20;
+
+//Configuracion A,B,C, Prueba 1
+//Prueba de Carga Masiva (1500 jobs)
+//const int TOTAL_JOBS = 1500;
+
+//Configuracion A,B,C Prueba 2
+//Prueba de Vacuidad (0 jobs)
+//const int TOTAL_JOBS = 0;
+
+//Configuracion A,B,C Prueba 3
+//Prueba de Saturacion (8 jobs premium)
+//const int TOTAL_JOBS = 8;
+
+//Configuracion A,B,C Prueba 4
+//Prueba de Equidad (Anti-Starvation)10 prem, 10 free
+    const int TOTAL_JOBS = 20;
 
 // --- FUNCIONES ---
-void api_gateway(){
-    int jobsCreados=0;
+//  void api_gateway(int limite){
+void api_gateway(int limite){
 
-    while(jobsCreados < 20){
-        jobsCreados++;
+    int jobsCreados = 0;        // contador local para este productor
+
+        //while(jobsCreados < 20){
+         while(jobsCreados < limite){// cada productor genera hasta su límite
+             jobsCreados++;
+
+        //CONFIGURACION PRUEBA 4
+        //10 PREMIUM PRIMERO
+        //auto inicio = std::chrono::steady_clock::now();
+        //while ((std::chrono::steady_clock::now() - inicio < std::chrono::milliseconds(5000))
+         //  && jobsCreados < limite/2) {   // mitad de los jobs como premium
+          //  jobsCreados++;
+
         //crear el id del job
         mtx_id.lock();
         int id=siguiente_id;
         siguiente_id++;
         mtx_id.unlock();
+
         //crear el job
         Job nuevo_job;
         nuevo_job.id=id;
         //prioridad aleatorio
         nuevo_job.prioridad=rand()%2; // 0-> free o 1-> premium
+        //-------------------------------------------
+        //prioridad Premium Configuracion A,B,C PRUEBA 3
+        //nuevo_job.prioridad = 1;
+        //Prioridad Premium Configuracion A,B,C PRUEBA 4
+        //nuevo_job.prioridad = 1; // Premium
+
+
         //retardo de produccion
         std::this_thread::sleep_for(std::chrono::milliseconds(100 ));
         //meter el job a la cola
@@ -59,11 +95,39 @@ void api_gateway(){
         std:: cout <<"job "<<id<<" con prioridad "<<nuevo_job.prioridad<<" creado y puesto en la cola."<<std::endl;
         mtx_log.unlock();
     }
-};
+
+    //---- Bloque FREE ( Prioridad 0 despues de los 5000ms)----
+//    while (jobsCreados < limite){
+//        jobsCreados++;
+//
+//        mtx_id.lock();
+//        int id = siguiente_id;
+//        siguiente_id++;
+//        mtx_id.unlock();
+//
+//        Job nuevo_job;
+//        nuevo_job.id = id;
+//        // Prioridad Free Configuración A Prueba 4
+//        nuevo_job.prioridad = 0; // Free
+//
+//        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//        mtx_queue.lock();
+//        message_queue.push(nuevo_job);
+//        mtx_queue.unlock();
+//
+//        signal(hay_jobs_cola);
+//
+//        mtx_log.lock();
+//        std::cout << "job " << id << " con prioridad " << nuevo_job.prioridad
+//                  << " creado y puesto en la cola." << std::endl;
+//        mtx_log.unlock();
+//  }
+ }
 
 void despachador(){
     int procesados = 0;
-    while(procesados < 20){
+    //while(procesados < 20){
+    while(procesados < TOTAL_JOBS){
         procesados++;
         //esperar a que haya jobs en la cola
         wait(hay_jobs_cola);
@@ -92,6 +156,9 @@ void despachador(){
         mtx_log.unlock();
         //"Debe existir un retardo simulado de 450ms entre asignaciones exitosas"
         std::this_thread::sleep_for(std::chrono::milliseconds(450));
+
+
+
 
     }
 

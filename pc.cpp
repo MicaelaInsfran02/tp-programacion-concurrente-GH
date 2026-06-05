@@ -7,9 +7,12 @@
 #include "semaforo.h"
 #include "job.h"
 #include "pc.h"
+#include <fstream> //para escribir en actividad.log
 
 // --- PUNTO DE INICIO DE TIEMPO GLOBAL ---
 std::chrono::steady_clock::time_point inicio_sistema = std::chrono::steady_clock::now();
+// --- LOG ---
+std::ofstream actividad_log("actividad.log");
 
 // --- RECURSOS COMPARTIDOS ---
 std::priority_queue<Job> message_queue; // BUFFER 1
@@ -70,7 +73,23 @@ void api_gateway(int limite) {
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(ahora - inicio_sistema).count();
 
         mtx_log.lock();
+        // ---REGISTRO DE CREADO
+        actividad_log
+            << "[" << ms << "] - "
+            << nuevo.id << " - "
+            << nuevo.prioridad << " - "
+            << "CREADO"
+            << std::endl;
         std::cout << "[" << ms << "ms]  Job " << nuevo.id << " - Prioridad " << nuevo.prioridad << "[CREADO]" << std::endl;
+        
+        // --- REGISTRO DE ENCOLADO ---
+        actividad_log
+            << "[" << ms << "] - "
+            << nuevo.id << " - "
+            << nuevo.prioridad << " - "
+            << "EN_COLA"
+            << std::endl;
+            
         std::cout << "[" << ms << "ms]  Job " << nuevo.id << " - Prioridad " << nuevo.prioridad << "[EN COLA]" << std::endl;
         mtx_log.unlock();
     }
@@ -109,6 +128,13 @@ void despachador() {
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(ahora - inicio_sistema).count();
 
         mtx_log.lock();
+        // --- REGISTRO DE ASIGNADO A VRAM ---
+        actividad_log
+            << "[" << ms << "] - "
+            << elegido.id << " - "
+            << elegido.prioridad << " - "
+            << "ASIGNADO_VRAM"
+            << std::endl;
         std::cout << "[" << ms << "ms]  Job " << elegido.id << " - Prioridad " << elegido.prioridad << " [ASIGNADO_VRAM]" << std::endl;
         mtx_log.unlock();
 
@@ -155,6 +181,13 @@ void worker() {
             auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(ahora - inicio_sistema).count();
 
             mtx_log.lock();
+            // --- REGISTRO DE FINALIZADO ---
+            actividad_log
+                << "[" << ms << "] - "
+                << trabajo.id << " - "
+                << trabajo.prioridad << " - "
+                << "FINALIZADO"
+                << std::endl;
             std::cout << "[" << ms << "ms]  Job " << trabajo.id << " - Prioridad " << trabajo.prioridad << " [FINALIZADO]" << std::endl;
             mtx_log.unlock();
         } else {

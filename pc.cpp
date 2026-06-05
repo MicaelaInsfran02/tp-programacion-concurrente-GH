@@ -4,207 +4,161 @@
 #include <mutex>
 #include <thread>
 #include <chrono>
-#include "pc.h"
 #include "semaforo.h"
 #include "job.h"
+#include "pc.h"
+
+// --- PUNTO DE INICIO DE TIEMPO GLOBAL ---
+std::chrono::steady_clock::time_point inicio_sistema = std::chrono::steady_clock::now();
+
+// --- RECURSOS COMPARTIDOS ---
+std::priority_queue<Job> message_queue; // BUFFER 1
+std::vector<Job> pool_vram;             // BUFFER 2
+int jobs_finalizados = 0;
+int siguiente_id = 1;
+// =============== CONFIGURACIÓN DE CARGA ==============
+const int TOTAL_JOBS = 20; // para prueba equidad
+//const int TOTAL_JOBS = 1500; // para prueba de Carga Masiva
+//const int TOTAL_JOBS = 0; // para prueba de Vacuidad
+//const int TOTAL_JOBS = 10; // para prueba de Saturación de Recursos
+// =====================================================
 
 
-// --- RECURSOS COMPARTIDOS (Se definen en pc.cpp) ---
-std::priority_queue<Job> message_queue; // Buffer 1
-std::vector<Job> pool_vram; // Buffer 2 (maximo 5)
+
 
 // --- MUTEX ---
-std::mutex mtx_log; //Para escribir en sistema.log sin mezclar líneas std::mutex mtx_vram; //protege el acceso al vector de VRAM
-std::mutex mtx_queue; // Protege el acceso a la priority_queue
-std::mutex mtx_vram;
+std::mutex mtx_queue; // Protege Buffer 1
+std::mutex mtx_vram;  // Protege Buffer 2
+std::mutex mtx_log;
 std::mutex mtx_id;
-std::mutex mtx_finalizados; //Para cuando finaliza el consumidor
+std::mutex mtx_finalizados;
 
 // --- SEMÁFOROS ---
-Semaforo hay_jobs_cola; // Si hay algo en el primer Buffer
-Semaforo hay_jobs_vram; // Si hay algo en el segundo Buffer
-Semaforo slots_vram_libres; //Inicializado en 5 (capacidad VRAM)
+Semaforo hay_jobs_cola;  // Controla Buffer 1
+Semaforo hay_jobs_vram;  // Controla Buffer 2
+Semaforo slots_vram_libres; // Capacidad del Buffer 2 (inicia en 5)
 
-// -- Variables globales
-int siguiente_id = 1; //Para asignar IDs únicos a los jobs
-
-int jobs_finalizados = 0;
-//const int TOTAL_JOBS = 20;
-
-//Configuracion A,B,C, Prueba 1
-//Prueba de Carga Masiva (1500 jobs)
-//const int TOTAL_JOBS = 1500;
-
-//Configuracion A,B,C Prueba 2
-//Prueba de Vacuidad (0 jobs)
-//const int TOTAL_JOBS = 0;
-
-//Configuracion A,B,C Prueba 3
-//Prueba de Saturacion (8 jobs premium)
-//const int TOTAL_JOBS = 8;
-
-//Configuracion A,B,C Prueba 4
-//Prueba de Equidad (Anti-Starvation)10 prem, 10 free
-    const int TOTAL_JOBS = 20;
-
-// --- FUNCIONES ---
-//  void api_gateway(int limite){
-void api_gateway(int limite){
-
-    int jobsCreados = 0;        // contador local para este productor
-
-        //while(jobsCreados < 20){
-         while(jobsCreados < limite){// cada productor genera hasta su límite
-             jobsCreados++;
-
-        //CONFIGURACION PRUEBA 4
-        //10 PREMIUM PRIMERO
-        //auto inicio = std::chrono::steady_clock::now();
-        //while ((std::chrono::steady_clock::now() - inicio < std::chrono::milliseconds(5000))
-         //  && jobsCreados < limite/2) {   // mitad de los jobs como premium
-          //  jobsCreados++;
-
-        //crear el id del job
+void api_gateway(int limite) {
+    for (int i = 0; i < limite; i++) {
         mtx_id.lock();
-        int id=siguiente_id;
-        siguiente_id++;
+        int id = siguiente_id++;
         mtx_id.unlock();
 
-        //crear el job
-        Job nuevo_job;
-        nuevo_job.id=id;
-        //prioridad aleatorio
-        nuevo_job.prioridad=rand()%2; // 0-> free o 1-> premium
-        //-------------------------------------------
-        //prioridad Premium Configuracion A,B,C PRUEBA 3
-        //nuevo_job.prioridad = 1;
-        //Prioridad Premium Configuracion A,B,C PRUEBA 4
-        //nuevo_job.prioridad = 1; // Premium
+        Job nuevo;
+        nuevo.id = id;
+        nuevo.prioridad = rand() % 2; // Formato estándar aleatorio pedido
+        nuevo.edad = 0;
 
+        /*// --- LÓGICA ESTRATÉGICA PARA FORZAR SATURACIÓN AL INICIO ---
+        if (i < 8) {
+            nuevo.prioridad = 1; // Los primeros 8 Jobs SIEMPRE serán Premium
+        } else {
+            nuevo.prioridad = rand() % 2; // El resto de la carga se distribuye al azar
+        }*/
 
-        //retardo de produccion
-        std::this_thread::sleep_for(std::chrono::milliseconds(100 ));
-        //meter el job a la cola
+        // Retardo de ingreso a Message Queue (100ms)
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
         mtx_queue.lock();
-        message_queue.push(nuevo_job);
+        message_queue.push(nuevo);
         mtx_queue.unlock();
-        //avisar que hay un nuevo job en la cola
+
         signal(hay_jobs_cola);
-        //mostrar
+
+        // --- REGISTRO CON TIEMPO CORREGIDO ---
+        auto ahora = std::chrono::steady_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(ahora - inicio_sistema).count();
+
         mtx_log.lock();
-        std:: cout <<"job "<<id<<" con prioridad "<<nuevo_job.prioridad<<" creado y puesto en la cola."<<std::endl;
+        std::cout << "[" << ms << "ms]  Job " << nuevo.id << " - Prioridad " << nuevo.prioridad << "[CREADO]" << std::endl;
+        std::cout << "[" << ms << "ms]  Job " << nuevo.id << " - Prioridad " << nuevo.prioridad << "[EN COLA]" << std::endl;
         mtx_log.unlock();
     }
+}
 
-    //---- Bloque FREE ( Prioridad 0 despues de los 5000ms)----
-//    while (jobsCreados < limite){
-//        jobsCreados++;
-//
-//        mtx_id.lock();
-//        int id = siguiente_id;
-//        siguiente_id++;
-//        mtx_id.unlock();
-//
-//        Job nuevo_job;
-//        nuevo_job.id = id;
-//        // Prioridad Free Configuración A Prueba 4
-//        nuevo_job.prioridad = 0; // Free
-//
-//        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-//        mtx_queue.lock();
-//        message_queue.push(nuevo_job);
-//        mtx_queue.unlock();
-//
-//        signal(hay_jobs_cola);
-//
-//        mtx_log.lock();
-//        std::cout << "job " << id << " con prioridad " << nuevo_job.prioridad
-//                  << " creado y puesto en la cola." << std::endl;
-//        mtx_log.unlock();
-//  }
- }
-
-void despachador(){
+void despachador() {
     int procesados = 0;
-    //while(procesados < 20){
-    while(procesados < TOTAL_JOBS){
-        procesados++;
-        //esperar a que haya jobs en la cola
+    while (procesados < TOTAL_JOBS) {
         wait(hay_jobs_cola);
-        //esperar un slot libre en VRAM
         wait(slots_vram_libres);
 
-        Job job_a_vram;
-
-        //Sacar de la message queue
         mtx_queue.lock();
-        job_a_vram = message_queue.top(); // obtener el job con mayor prioridad (premium antes que free)
+        Job elegido = message_queue.top();
         message_queue.pop();
+
+        // Aplicar AGING: Envejecer a los que quedaron esperando en Buffer 1
+        std::vector<Job> temporal;
+        while (!message_queue.empty()) {
+            Job j = message_queue.top();
+            message_queue.pop();
+            j.edad++;
+            temporal.push_back(j);
+        }
+        for (const auto& j : temporal) message_queue.push(j);
         mtx_queue.unlock();
 
-        // meter a VRAM
+        // Pasar al Pool de VRAM (BUFFER 2)
         mtx_vram.lock();
-        pool_vram.push_back(job_a_vram);
+        pool_vram.push_back(elegido);
         mtx_vram.unlock();
 
-
-        //avisar que hay un nuevo job en VRAM
         signal(hay_jobs_vram);
-        //mostrar
+
+        // --- REGISTRO CON TIEMPO CORREGIDO ---
+        auto ahora = std::chrono::steady_clock::now();
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(ahora - inicio_sistema).count();
+
         mtx_log.lock();
-        std::cout << "job "<<job_a_vram.id<<" con prioridad " <<job_a_vram.prioridad<<" asignado a VRAM." << std::endl;
+        std::cout << "[" << ms << "ms]  Job " << elegido.id << " - Prioridad " << elegido.prioridad << " [ASIGNADO_VRAM]" << std::endl;
         mtx_log.unlock();
-        //"Debe existir un retardo simulado de 450ms entre asignaciones exitosas"
+
+        // Retardo simulado entre asignaciones (450ms)
         std::this_thread::sleep_for(std::chrono::milliseconds(450));
-
-
-
-
+        procesados++;
     }
 
-};
+    // Señal de finalización para los workers
+    for (int i = 0; i < 10; i++) signal(hay_jobs_vram);
+}
 
 void worker() {
-
-    while(true){
-
+    while (true) {
         wait(hay_jobs_vram);
 
-        Job trabajo;
-        mtx_vram.lock();
-
-        trabajo = pool_vram.front();
-        pool_vram.erase(pool_vram.begin());
-
-        mtx_vram.unlock();
-
-        std::this_thread::sleep_for(
-            std::chrono::milliseconds(600)
-        );
-
-        signal(slots_vram_libres);
-
         mtx_finalizados.lock();
-
-        jobs_finalizados++;
-
-        int actual = jobs_finalizados;
-
+        if (jobs_finalizados >= TOTAL_JOBS) {
+            mtx_finalizados.unlock();
+            break;
+        }
         mtx_finalizados.unlock();
 
-        mtx_log.lock();
+        // Renderizado (mínimo 600ms en VRAM)
+        std::this_thread::sleep_for(std::chrono::milliseconds(600));
 
-        std::cout
-            << "[WORKER "
-            << std::this_thread::get_id()
-            << "] Job "
-            << trabajo.id
-            << " finalizado."
-            << std::endl;
+        mtx_vram.lock();
+        if (!pool_vram.empty()) {
+            Job trabajo = pool_vram.front();
+            pool_vram.erase(pool_vram.begin());
 
-        mtx_log.unlock();
+            // Retardo de liberación de slot (250ms)
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            mtx_vram.unlock();
 
-        if(actual >= TOTAL_JOBS)
-            break;
+            signal(slots_vram_libres);
+
+            mtx_finalizados.lock();
+            jobs_finalizados++;
+            mtx_finalizados.unlock();
+
+            // --- REGISTRO CON TIEMPO CORREGIDO ---
+            auto ahora = std::chrono::steady_clock::now();
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(ahora - inicio_sistema).count();
+
+            mtx_log.lock();
+            std::cout << "[" << ms << "ms]  Job " << trabajo.id << " - Prioridad " << trabajo.prioridad << " [FINALIZADO]" << std::endl;
+            mtx_log.unlock();
+        } else {
+            mtx_vram.unlock();
+        }
     }
 }

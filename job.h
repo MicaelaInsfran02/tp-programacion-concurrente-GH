@@ -1,17 +1,22 @@
 #ifndef JOB_H_INCLUDED
 #define JOB_H_INCLUDED
 
-//#include <string>
 
 struct Job{
 
     int id;
-    int prioridad; // 1: significa que es premium, 0: significa free
+    int prioridad; //1: Premium, 0: Free
+    int edad = 0;  // Contador de postergaciones para Aging
 
-    // Para que el Premium (1) salga antes que el Free (0),
-    //definimos que un Job es "menor" si su prioridad es menor.
+    // La prioridad efectiva es la suma de su estatus y su edad
+    int prioridad_total() const{
+        return prioridad + edad;
+    }
+
+    // El operador < define el orden en la priority_queue
+    // (C++ saca primero al que devuelve "falso" en la comparación de menor)
     bool operator<(const Job& otro) const {
-    return prioridad < otro.prioridad;
+        return prioridad_total() < otro.prioridad_total();
     }
 
 };

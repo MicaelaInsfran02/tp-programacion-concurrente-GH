@@ -21,7 +21,7 @@ int main() {
     // =========================================================================
     // ESCENARIO A: 1 Productor / 2 Consumidores
     // =========================================================================
-    std::cout << ">>> Ejecutando ESCENARIO A" << std::endl;
+    /*std::cout << ">>> Ejecutando ESCENARIO A" << std::endl;
     std::thread p1(api_gateway, 20);
     std::thread d(despachador);
     std::thread w1(worker);
@@ -30,15 +30,13 @@ int main() {
     p1.join();
     d.join();
     w1.join();
-    w2.join();
-
-
+    w2.join();*/
 
     // =========================================================================
     // ESCENARIO B: 3 Productores / 1 Consumidor (COMENTADO)
     // =========================================================================
-    /*
-    std::cout << ">>> Ejecutando ESCENARIO B" << std::endl;
+
+    /*std::cout << ">>> Ejecutando ESCENARIO B" << std::endl;
     std::thread p1(api_gateway, 5);
     std::thread p2(api_gateway, 5);
     std::thread p3(api_gateway, 5);
@@ -47,14 +45,20 @@ int main() {
 
     p1.join(); p2.join(); p3.join();
     d.join();
-    w1.join();
-    */
+    w1.join();*/
+
 
     // =========================================================================
     // ESCENARIO C: 3 Productores / 3 Consumidores (COMENTADO)
     // =========================================================================
-    /*
+
     std::cout << ">>> Ejecutando ESCENARIO C" << std::endl;
+
+    //------> PARA LA PRUEBA DE CARGA MASIVA
+    /*std::thread p1(api_gateway, 500);
+    std::thread p2(api_gateway, 500);
+    std::thread p3(api_gateway, 500);*/
+
     std::thread p1(api_gateway, 5);
     std::thread p2(api_gateway, 5);
     std::thread p3(api_gateway, 5);
@@ -66,7 +70,6 @@ int main() {
     p1.join(); p2.join(); p3.join();
     d.join();
     w1.join(); w2.join(); w3.join();
-    */
 
     std::cout << "===============================================" << std::endl;
     std::cout << "   PROCESAMIENTO FINALIZADO CON EXITO" << std::endl;

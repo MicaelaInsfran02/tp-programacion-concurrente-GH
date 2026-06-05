@@ -20,14 +20,11 @@ std::vector<Job> pool_vram;             // BUFFER 2
 int jobs_finalizados = 0;
 int siguiente_id = 1;
 // =============== CONFIGURACIÓN DE CARGA ==============
-const int TOTAL_JOBS = 20; // para prueba equidad
+//const int TOTAL_JOBS = 20; // para prueba equidad
 //const int TOTAL_JOBS = 1500; // para prueba de Carga Masiva
 //const int TOTAL_JOBS = 0; // para prueba de Vacuidad
-//const int TOTAL_JOBS = 10; // para prueba de Saturación de Recursos
+const int TOTAL_JOBS = 10; // para prueba de Saturación de Recursos
 // =====================================================
-
-
-
 
 // --- MUTEX ---
 std::mutex mtx_queue; // Protege Buffer 1
@@ -81,7 +78,7 @@ void api_gateway(int limite) {
             << "CREADO"
             << std::endl;
         std::cout << "[" << ms << "ms]  Job " << nuevo.id << " - Prioridad " << nuevo.prioridad << "[CREADO]" << std::endl;
-        
+
         // --- REGISTRO DE ENCOLADO ---
         actividad_log
             << "[" << ms << "] - "
@@ -89,7 +86,7 @@ void api_gateway(int limite) {
             << nuevo.prioridad << " - "
             << "EN_COLA"
             << std::endl;
-            
+
         std::cout << "[" << ms << "ms]  Job " << nuevo.id << " - Prioridad " << nuevo.prioridad << "[EN COLA]" << std::endl;
         mtx_log.unlock();
     }
